@@ -1,10 +1,9 @@
-import streamlit as st
 import pandas as pd
 import json
 import glob
 import os
 
-def flatten_json(nested_json, parent_key='', sep='.'):
+def flatten_json(nested_json, parent_key='', sep='.'): 
     """Recursively flattens a nested JSON object into a list of dictionaries, handling arrays as multiple rows."""
     flattened_rows = []
 
@@ -28,8 +27,8 @@ def flatten_json(nested_json, parent_key='', sep='.'):
     recursive_flatten(nested_json, [], {})
     return flattened_rows if flattened_rows else [{}]
 
-def json_to_csv(json_files):
-    """Converts multiple nested JSON files to a DataFrame."""
+def json_to_csv(json_files, output_file):
+    """Converts multiple nested JSON files to a CSV format with hierarchical column names and multiple rows for arrays."""
     all_rows = []
 
     for json_file in json_files:
@@ -42,36 +41,72 @@ def json_to_csv(json_files):
             for entry in data:
                 all_rows.extend(flatten_json(entry))
 
-    return pd.DataFrame(all_rows)
+    df = pd.DataFrame(all_rows)
+    df.to_csv(output_file, index=False)
+    print(f"CSV file saved to {output_file}")
 
-st.title("JSON to CSV Converter")
-st.write("Upload multiple JSON files to convert them into a single CSV file.")
+# Example usage
+json_folder = "./json_files/"  # Replace with the folder containing JSON files
+csv_output_file = "output_combined.csv"
 
-uploaded_files = st.file_uploader("Upload JSON Files", type=["json"], accept_multiple_files=True)
+# Get all JSON files in the folder
+json_files = glob.glob(os.path.join(json_folder, "*.json"))
 
-if uploaded_files:
-    json_files = []
+# Convert JSON files to CSV
+json_to_csv(json_files, csv_output_file)
+import pandas as pd
+import json
+import glob
+import os
 
-    for uploaded_file in uploaded_files:
-        bytes_data = uploaded_file.read()
-        temp_file = f"temp_{uploaded_file.name}"
-        with open(temp_file, 'wb') as f:
-            f.write(bytes_data)
-        json_files.append(temp_file)
+def flatten_json(nested_json, parent_key='', sep='.'): 
+    """Recursively flattens a nested JSON object into a list of dictionaries, handling arrays as multiple rows."""
+    flattened_rows = []
 
-    df = json_to_csv(json_files)
+    def recursive_flatten(obj, parent, row):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                recursive_flatten(v, parent + [(k, None)], row)
+        elif isinstance(obj, list):
+            if all(isinstance(item, (str, int, float)) for item in obj):
+                key = sep.join(k for k, _ in parent)
+                row[key] = ', '.join(map(str, obj))
+            else:
+                for item in obj:
+                    new_row = row.copy()
+                    recursive_flatten(item, parent, new_row)
+                    flattened_rows.append(new_row)
+        else:
+            key = sep.join(k for k, _ in parent)
+            row[key] = obj
 
-    st.subheader("Preview of the Flattened Data")
-    st.dataframe(df.head())
+    recursive_flatten(nested_json, [], {})
+    return flattened_rows if flattened_rows else [{}]
 
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="Download CSV File",
-        data=csv,
-        file_name="output_combined.csv",
-        mime="text/csv"
-    )
+def json_to_csv(json_files, output_file):
+    """Converts multiple nested JSON files to a CSV format with hierarchical column names and multiple rows for arrays."""
+    all_rows = []
 
-    # Clean up temporary files
-    for file in json_files:
-        os.remove(file)
+    for json_file in json_files:
+        with open(json_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+            if isinstance(data, dict):
+                data = [data]
+
+            for entry in data:
+                all_rows.extend(flatten_json(entry))
+
+    df = pd.DataFrame(all_rows)
+    df.to_csv(output_file, index=False)
+    print(f"CSV file saved to {output_file}")
+
+# Example usage
+json_folder = "./json_files/"  # Replace with the folder containing JSON files
+csv_output_file = "output_combined.csv"
+
+# Get all JSON files in the folder
+json_files = glob.glob(os.path.join(json_folder, "*.json"))
+
+# Convert JSON files to CSV
+json_to_csv(json_files, csv_output_file)
