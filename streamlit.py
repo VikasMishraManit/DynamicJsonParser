@@ -23,18 +23,23 @@ if uploaded_files:
     json_to_csv(json_files, output_file)
 
     # Load and display the CSV
-    df = pd.read_csv(output_file)
-    st.subheader("Preview of the Converted CSV")
-    st.dataframe(df.head())
+    if os.path.exists(output_file):
+        df = pd.read_csv(output_file)
+        st.subheader("Preview of the Converted CSV")
+        st.dataframe(df.head())
 
-    # Provide download button
-    st.download_button(
-        label="Download CSV File",
-        data=df.to_csv(index=False).encode('utf-8'),
-        file_name="output_combined.csv",
-        mime="text/csv"
-    )
+        # Provide download button
+        st.download_button(
+            label="Download CSV File",
+            data=open(output_file, "rb").read(),
+            file_name="output_combined.csv",
+            mime="text/csv"
+        )
+    else:
+        st.error("CSV file was not generated. Please check your JSON input.")
 
     # Clean up temporary files
     for file in json_files:
         os.remove(file)
+    if os.path.exists(output_file):
+        os.remove(output_file)
